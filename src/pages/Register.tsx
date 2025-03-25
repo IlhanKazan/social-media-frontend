@@ -39,7 +39,7 @@ const Register: React.FC = () => {
 
     try {
       await register(formData);
-      navigate('/login');
+      navigate('/');
     } catch (err: any) {
       console.error('Kayıt hatası:', err);
       if (err.response && err.response.data) {
@@ -113,7 +113,7 @@ const Register: React.FC = () => {
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2">
             Zaten bir hesabınız var mı?{' '}
-            <Link href="/login" underline="hover">
+            <Link href="/" underline="hover">
               Giriş Yap
             </Link>
           </Typography>

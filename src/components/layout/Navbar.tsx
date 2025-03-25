@@ -18,7 +18,7 @@ const Navbar: React.FC = () => {
           Sosyal Medya
         </Typography>
         <Box>
-          <Button color="inherit" component={RouterLink} to="/">
+          <Button color="inherit" component={RouterLink} to="/home">
             Ana Sayfa
           </Button>
           <Button color="inherit" component={RouterLink} to="/profile">
