@@ -1,36 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { getCurrentAccount } from '../services/accountService';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { globalRefresh } from '../pages/Home';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
-  const isAuthenticated = !!localStorage.getItem('token');
-  const [user, setUser] = useState<any | null>(null);
+  const location = useLocation();
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      if (isAuthenticated) {
-        try {
-          console.log('Token:', localStorage.getItem('token'));
-          const account = await getCurrentAccount();
-          console.log('Account:', account);
-          setCurrentUsername(account.username);
-          setUser(account);
-        } catch (error) {
-          console.error('Kullanıcı bilgileri alınamadı:', error);
-        }
+  const handleHomeClick = () => {
+    if (location.pathname === '/home') {
+      if (globalRefresh) {
+        globalRefresh();
       }
-    };
+    } else {
+      navigate('/home');
+    }
+  };
 
-    fetchCurrentUser();
-  }, [isAuthenticated]);
+  const handleLogoClick = () => {
+    if (user) {
+      handleHomeClick();
+    } else {
+      navigate('/');
+    }
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+    logout();
     navigate('/');
   };
 
@@ -39,20 +37,16 @@ const Navbar: React.FC = () => {
       <Toolbar>
         <Typography
           variant="h6"
-          component={RouterLink}
-          to="/"
-          sx={{
-            flexGrow: 1,
-            textDecoration: 'none',
-            color: 'inherit',
-          }}
+          component="div"
+          sx={{ flexGrow: 1, cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+          onClick={handleLogoClick}
         >
           Ilhan Twitteri
         </Typography>
         <Box>
           {user ? (
             <>
-              <Button color="inherit" onClick={() => navigate('/home')}>
+              <Button color="inherit" onClick={handleHomeClick}>
                 Ana Sayfa
               </Button>
               <Button color="inherit" onClick={() => navigate(`/profile/${user.username}`)}>

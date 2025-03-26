@@ -3,14 +3,12 @@ import { Account } from '../types';
 
 interface TokenPayload {
   sub: string;
-  role: string;
   phone: string;
   email: string;
 }
 
 interface TokenInfo {
   accountId: number;
-  role: string;
   phone: string;
   email: string;
 }
@@ -50,13 +48,12 @@ export const getYourTokenInfo = (): TokenInfo => {
   const decoded = decodeToken(token);
   
   // Gerekli alanların varlığını kontrol et
-  if (!decoded.sub || !decoded.role || !decoded.phone || !decoded.email) {
+  if (!decoded.sub || !decoded.phone || !decoded.email) {
     throw new Error('Token eksik bilgiler içeriyor');
   }
 
   return {
     accountId: parseInt(decoded.sub),
-    role: decoded.role,
     phone: decoded.phone,
     email: decoded.email
   };

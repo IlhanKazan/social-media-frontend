@@ -5,7 +5,7 @@ import api from '../../services/api';
 import PostCard from './PostCard';
 import CreatePost from './CreatePost';
 import { useAuth } from '../../hooks/useAuth';
-import { AxiosResponse } from 'axios';
+import { saveInteraction, deleteInteraction } from '../../services/postService';
 
 interface PostListProps {
   onPostCreated?: () => Promise<void>;
@@ -14,6 +14,7 @@ interface PostListProps {
   onLike?: (postId: number, interactionId?: number) => Promise<void>;
   onDislike?: (postId: number, interactionId?: number) => Promise<void>;
   onComment?: (content: string, postId: number, interactionId?: number) => Promise<void>;
+  onRefresh?: () => void;
 }
 
 interface InteractionResponse {
@@ -34,7 +35,8 @@ const PostList: React.FC<PostListProps> = ({
   posts: initialPosts,
   onLike,
   onDislike,
-  onComment
+  onComment,
+  onRefresh
 }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,8 @@ const PostList: React.FC<PostListProps> = ({
           setError('Sunucudan geçersiz veri formatı alındı');
           return;
         }
+        // Gönderileri createDate'e göre sırala (en yeniden en eskiye)
+        fetchedPosts.sort((a, b) => new Date(b.createDate).getTime() - new Date(a.createDate).getTime());
         setPosts(fetchedPosts);
       }
     } catch (err: any) {
@@ -85,7 +89,7 @@ const PostList: React.FC<PostListProps> = ({
 
   useEffect(() => {
     fetchPosts();
-  }, [username, initialPosts]);
+  }, [username, initialPosts, onRefresh]);
 
   const handlePostCreated = async () => {
     await fetchPosts();
@@ -98,59 +102,42 @@ const PostList: React.FC<PostListProps> = ({
     try {
       if (interactionId) {
         // Eğer interactionId varsa, mevcut etkileşimi sil
-        await api.get(`/interaction/delete/${interactionId}`);
+        await deleteInteraction(interactionId);
       } else {
         // Yeni etkileşim ekle
-        await api.post('/interaction/save', {
+        await saveInteraction(
           postId,
-          context: type === 'comment' ? content : type === 'like' ? 'like' : 'dislike',
-          type: type === 'like' ? 1 : type === 'dislike' ? 2 : 0
-        });
+          type === 'like' ? 1 : type === 'dislike' ? 2 : 0,
+          type === 'comment' ? content : undefined
+        );
       }
 
-      // Post verilerini güncelle
-      const response = await api.get(username ? `/post/user/${username}` : '/post/get-all');
+      // Sadece değişen postu güncelle
+      const response = await api.get(`/post/get-by-id/${postId}`);
       if (response.status === 200) {
-        let fetchedPosts: Post[] = [];
-        if (Array.isArray(response.data)) {
-          fetchedPosts = response.data;
-        } else if (response.data.content && Array.isArray(response.data.content)) {
-          fetchedPosts = response.data.content;
-        }
-        setPosts(fetchedPosts);
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.postId === postId ? response.data : post
+          )
+        );
       }
     } catch (error) {
       console.error('Etkileşim hatası:', error);
     }
   };
 
-  const handlePostDeleted = async () => {
-    await fetchPosts();
+  const handlePostUpdated = async (updatedPost: Post) => {
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.postId === updatedPost.postId ? updatedPost : post
+      )
+    );
   };
 
-  const handlePostUpdated = async (updatedPost: Post) => {
-    try {
-      // Önce local state'i güncelle
-      setPosts(prevPosts => 
-        prevPosts.map(post => 
-          post.postId === updatedPost.postId ? updatedPost : post
-        )
-      );
-
-      // Sonra API'den güncel verileri al
-      const response = await api.get(username ? `/post/user/${username}` : '/post/get-all');
-      if (response.status === 200) {
-        let fetchedPosts: Post[] = [];
-        if (Array.isArray(response.data)) {
-          fetchedPosts = response.data;
-        } else if (response.data.content && Array.isArray(response.data.content)) {
-          fetchedPosts = response.data.content;
-        }
-        setPosts(fetchedPosts);
-      }
-    } catch (error) {
-      console.error('Post güncelleme hatası:', error);
-    }
+  const handlePostDeleted = async (deletedPostId: number) => {
+    setPosts(prevPosts => 
+      prevPosts.filter(post => post.postId !== deletedPostId)
+    );
   };
 
   if (loading) {
@@ -182,17 +169,39 @@ const PostList: React.FC<PostListProps> = ({
           {error}
         </Typography>
       )}
-      {posts.map((post) => (
-        <PostCard
-          key={post.postId}
-          post={post}
-          onLike={onLike ? (postId, interactionId) => onLike(postId, interactionId) : (postId, interactionId) => handleInteraction(postId, 'like', undefined, interactionId)}
-          onDislike={onDislike ? (postId, interactionId) => onDislike(postId, interactionId) : (postId, interactionId) => handleInteraction(postId, 'dislike', undefined, interactionId)}
-          onComment={onComment ? (content, postId, interactionId) => onComment(content, postId, interactionId) : (content) => handleInteraction(post.postId, 'comment', content)}
-          onPostDeleted={handlePostDeleted}
-          onPostUpdated={handlePostUpdated}
-        />
-      ))}
+      {posts.length === 0 ? (
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            minHeight: '200px',
+            backgroundColor: 'background.paper',
+            borderRadius: 1,
+            p: 3
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            color="text.secondary"
+            sx={{ textAlign: 'center' }}
+          >
+            {username ? `${username} kullanıcısının henüz bir gönderisi yok` : 'Henüz bir gönderi yok'}
+          </Typography>
+        </Box>
+      ) : (
+        posts.map((post) => (
+          <PostCard
+            key={post.postId}
+            post={post}
+            onLike={onLike ? (postId, interactionId) => onLike(postId, interactionId) : (postId, interactionId) => handleInteraction(postId, 'like', undefined, interactionId)}
+            onDislike={onDislike ? (postId, interactionId) => onDislike(postId, interactionId) : (postId, interactionId) => handleInteraction(postId, 'dislike', undefined, interactionId)}
+            onComment={onComment ? (content, postId, interactionId) => onComment(content, postId, interactionId) : (content) => handleInteraction(post.postId, 'comment', content)}
+            onPostDeleted={handlePostDeleted}
+            onPostUpdated={handlePostUpdated}
+          />
+        ))
+      )}
     </Box>
   );
 };

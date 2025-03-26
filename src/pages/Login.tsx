@@ -7,10 +7,13 @@ import {
   Button,
   Typography,
   Alert,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
 import { getCurrentAccount } from '../services/accountService';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +22,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +57,16 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleMouseDownPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowPassword(true);
+  };
+
+  const handleMouseUpPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowPassword(false);
+  };
+
   return (
     <Container maxWidth="sm">
       <Box
@@ -85,9 +99,24 @@ const Login: React.FC = () => {
             required
             fullWidth
             label="Şifre"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="şifre görünürlüğünü değiştir"
+                    onMouseDown={handleMouseDownPassword}
+                    onMouseUp={handleMouseUpPassword}
+                    onMouseLeave={handleMouseUpPassword}
+                    edge="end"
+                  >
+                    <Visibility />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           <Button
             type="submit"

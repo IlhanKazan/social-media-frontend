@@ -2,12 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
-  Grid,
   Card,
   CardContent,
-  CardActions,
   Typography,
-  Button,
   Avatar,
   Box,
   CircularProgress,
@@ -15,7 +12,6 @@ import {
 } from '@mui/material';
 import { Settings } from '@mui/icons-material';
 import { Account } from '../types';
-import { Post } from '../types/post';
 import { getAccountByUsername } from '../services/accountService';
 import PostList from '../components/post/PostList';
 import { useAuth } from '../hooks/useAuth';
@@ -133,9 +129,6 @@ const Profile: React.FC = () => {
               </Box>
               <Typography color="text.secondary" gutterBottom>
                 {account.email}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Telefon: {account.phone}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Katılma Tarihi: {new Date(account.createDate).toLocaleDateString('tr-TR')}

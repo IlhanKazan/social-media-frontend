@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container,
-  Card,
-  CardContent,
   Typography,
   TextField,
   Button,
@@ -16,11 +14,14 @@ import {
   DialogContentText,
   DialogActions,
   Paper,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
 import { updateAccount, getYourTokenInfo } from '../services/accountService';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 const Settings: React.FC = () => {
   const { user, setUser } = useAuth();
@@ -29,13 +30,15 @@ const Settings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -46,7 +49,7 @@ const Settings: React.FC = () => {
   useEffect(() => {
     try {
       const tokenInfo = getYourTokenInfo();
-      setForm(prev => ({
+      setFormData(prev => ({
         ...prev,
         email: tokenInfo.email,
         phone: tokenInfo.phone
@@ -58,10 +61,34 @@ const Settings: React.FC = () => {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfirmPassword(e.target.value);
+  };
+
+  const handleMouseDownNewPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowNewPassword(true);
+  };
+
+  const handleMouseUpNewPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowNewPassword(false);
+  };
+
+  const handleMouseDownConfirmPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowConfirmPassword(true);
+  };
+
+  const handleMouseUpConfirmPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowConfirmPassword(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,7 +98,7 @@ const Settings: React.FC = () => {
     setSuccess(null);
 
     // Şifre kontrolü
-    if (form.password && form.password !== form.confirmPassword) {
+    if (formData.password && formData.password !== confirmPassword) {
       setError('Şifreler eşleşmiyor');
       setLoading(false);
       return;
@@ -79,13 +106,14 @@ const Settings: React.FC = () => {
 
     try {
       await updateAccount({
-        username: form.username,
-        email: form.email,
-        phone: form.phone,
-        password: form.password || ""
+        username: formData.username,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password || ""
       });
       setSuccess('Bilgileriniz başarıyla güncellendi');
-      setForm(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      setFormData(prev => ({ ...prev, password: '' }));
+      setConfirmPassword('');
     } catch (err: any) {
       console.error('Güncelleme hatası:', err);
       if (err.response?.status === 403) {
@@ -143,7 +171,7 @@ const Settings: React.FC = () => {
               fullWidth
               label="Kullanıcı Adı"
               name="username"
-              value={form.username}
+              value={formData.username}
               onChange={handleChange}
               margin="normal"
               required
@@ -154,7 +182,7 @@ const Settings: React.FC = () => {
               label="E-posta"
               name="email"
               type="email"
-              value={form.email}
+              value={formData.email}
               onChange={handleChange}
               margin="normal"
               required
@@ -164,7 +192,7 @@ const Settings: React.FC = () => {
               fullWidth
               label="Telefon"
               name="phone"
-              value={form.phone}
+              value={formData.phone}
               onChange={handleChange}
               margin="normal"
               required
@@ -172,25 +200,55 @@ const Settings: React.FC = () => {
 
             <TextField
               fullWidth
-              label="Yeni Şifre (Opsiyonel)"
+              label="Yeni Şifre"
               name="password"
-              type="password"
-              value={form.password}
+              type={showNewPassword ? 'text' : 'password'}
+              value={formData.password}
               onChange={handleChange}
               margin="normal"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="şifre görünürlüğünü değiştir"
+                      onMouseDown={handleMouseDownNewPassword}
+                      onMouseUp={handleMouseUpNewPassword}
+                      onMouseLeave={handleMouseUpNewPassword}
+                      edge="end"
+                    >
+                      <Visibility />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
               helperText="Şifrenizi değiştirmek istemiyorsanız boş bırakın"
             />
 
             <TextField
               fullWidth
-              label="Yeni Şifre Tekrar"
+              label="Yeni Şifre Tekrarı"
               name="confirmPassword"
-              type="password"
-              value={form.confirmPassword}
-              onChange={handleChange}
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={handleConfirmPasswordChange}
               margin="normal"
-              error={!!form.password && form.password !== form.confirmPassword}
-              helperText={!!form.password && form.password !== form.confirmPassword ? "Şifreler eşleşmiyor" : ""}
+              error={formData.password !== confirmPassword && confirmPassword !== ''}
+              helperText={formData.password !== confirmPassword && confirmPassword !== '' ? 'Şifreler eşleşmiyor' : ''}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="şifre görünürlüğünü değiştir"
+                      onMouseDown={handleMouseDownConfirmPassword}
+                      onMouseUp={handleMouseUpConfirmPassword}
+                      onMouseLeave={handleMouseUpConfirmPassword}
+                      edge="end"
+                    >
+                      <Visibility />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
 
             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>

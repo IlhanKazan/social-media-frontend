@@ -36,14 +36,14 @@ import { Post } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import CommentList from './CommentList';
 import { useAuth } from '../../hooks/useAuth';
-import api from '../../services/api';
+import { deletePost, updatePost, getPost } from '../../services/postService';
 
 interface PostCardProps {
   post: Post;
   onLike?: (postId: number, interactionId?: number) => Promise<void>;
   onDislike?: (postId: number, interactionId?: number) => Promise<void>;
   onComment?: (content: string, postId: number, interactionId?: number) => Promise<void>;
-  onPostDeleted?: () => Promise<void>;
+  onPostDeleted?: (postId: number) => Promise<void>;
   onPostUpdated?: (updatedPost: Post) => Promise<void>;
 }
 
@@ -122,12 +122,10 @@ const PostCard: React.FC<PostCardProps> = ({
   const handleDelete = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get(`/post/delete/${post.postId}`);
-      if (response.status === 200) {
-        setShowDeleteDialog(false);
-        if (onPostDeleted) {
-          await onPostDeleted();
-        }
+      await deletePost(post.postId);
+      setShowDeleteDialog(false);
+      if (onPostDeleted) {
+        await onPostDeleted(post.postId);
       }
     } catch (error: any) {
       console.error('Post silme hatası:', error);
@@ -146,15 +144,10 @@ const PostCard: React.FC<PostCardProps> = ({
     
     try {
       setIsLoading(true);
-      const response = await api.post('/post/update', {
-        postId: post.postId,
-        context: editContent
-      });
-      if (response.status === 200) {
-        setShowEditDialog(false);
-        if (onPostUpdated) {
-          await onPostUpdated(response.data);
-        }
+      const updatedPost = await updatePost(post.postId, editContent);
+      setShowEditDialog(false);
+      if (onPostUpdated) {
+        await onPostUpdated(updatedPost);
       }
     } catch (error: any) {
       console.error('Post güncelleme hatası:', error);
@@ -170,12 +163,9 @@ const PostCard: React.FC<PostCardProps> = ({
 
   const handleCommentUpdated = async () => {
     try {
-      const response = await api.get(`/post/${post.postId}`);
-      if (response.status === 200) {
-        const updatedPost = response.data;
-        if (onPostUpdated) {
-          await onPostUpdated(updatedPost);
-        }
+      const updatedPost = await getPost(post.postId);
+      if (onPostUpdated) {
+        await onPostUpdated(updatedPost);
       }
     } catch (error) {
       console.error('Yorum güncelleme hatası:', error);
@@ -184,49 +174,46 @@ const PostCard: React.FC<PostCardProps> = ({
 
   const handleCommentDeleted = async () => {
     try {
-      const response = await api.get(`/post/${post.postId}`);
-      if (response.status === 200) {
-        const updatedPost = response.data;
-        if (onPostUpdated) {
-          await onPostUpdated(updatedPost);
-        }
+      const updatedPost = await getPost(post.postId);
+      if (onPostUpdated) {
+        await onPostUpdated(updatedPost);
       }
     } catch (error) {
       console.error('Yorum silme hatası:', error);
     }
   };
 
-  const handleLike = () => {
-    const existingLike = post.interactions.find(i => i.type === 1);
-    const existingDislike = post.interactions.find(i => i.type === 2);
+  const handleLike = async () => {
+    const existingLike = post.interactions.find(i => i.type === 1 && i.accountUsername === user?.username);
+    const existingDislike = post.interactions.find(i => i.type === 2 && i.accountUsername === user?.username);
     
     if (existingLike) {
-      // Eğer zaten like varsa, onu sil
-      onLike?.(post.postId, existingLike.interactionId);
+      // Mevcut like'ı sil
+      await onLike?.(post.postId, existingLike.interactionId);
     } else if (existingDislike) {
-      // Eğer dislike varsa, onu sil ve like ekle
-      onDislike?.(post.postId, existingDislike.interactionId);
-      onLike?.(post.postId);
+      // Önce dislike'ı sil, sonra like ekle
+      await onDislike?.(post.postId, existingDislike.interactionId);
+      await onLike?.(post.postId);
     } else {
-      // Hiç etkileşim yoksa, like ekle
-      onLike?.(post.postId);
+      // Yeni like ekle
+      await onLike?.(post.postId);
     }
   };
 
-  const handleDislike = () => {
-    const existingLike = post.interactions.find(i => i.type === 1);
-    const existingDislike = post.interactions.find(i => i.type === 2);
+  const handleDislike = async () => {
+    const existingLike = post.interactions.find(i => i.type === 1 && i.accountUsername === user?.username);
+    const existingDislike = post.interactions.find(i => i.type === 2 && i.accountUsername === user?.username);
     
     if (existingDislike) {
-      // Eğer zaten dislike varsa, onu sil
-      onDislike?.(post.postId, existingDislike.interactionId);
+      // Mevcut dislike'ı sil
+      await onDislike?.(post.postId, existingDislike.interactionId);
     } else if (existingLike) {
-      // Eğer like varsa, onu sil ve dislike ekle
-      onLike?.(post.postId, existingLike.interactionId);
-      onDislike?.(post.postId);
+      // Önce like'ı sil, sonra dislike ekle
+      await onLike?.(post.postId, existingLike.interactionId);
+      await onDislike?.(post.postId);
     } else {
-      // Hiç etkileşim yoksa, dislike ekle
-      onDislike?.(post.postId);
+      // Yeni dislike ekle
+      await onDislike?.(post.postId);
     }
   };
 

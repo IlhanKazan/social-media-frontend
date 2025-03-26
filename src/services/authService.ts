@@ -29,7 +29,6 @@ export const register = async (data: AccountRequest): Promise<AuthResponse> => {
     email: data.email,
     phone: data.phone
   });
-  localStorage.setItem('token', response.data.token);
   return response.data;
 };
 
